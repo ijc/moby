@@ -40,7 +40,11 @@ func (c *Cluster) getNetworks(filters *swarmapi.ListNetworksRequest_Filters) ([]
 	networks := make([]apitypes.NetworkResource, 0, len(r.Networks))
 
 	for _, network := range r.Networks {
-		networks = append(networks, convert.BasicNetworkFromGRPC(*network))
+		basic, err := convert.BasicNetworkFromGRPC(*network)
+		if err != nil {
+			return nil, err
+		}
+		networks = append(networks, basic)
 	}
 
 	return networks, nil
@@ -60,7 +64,7 @@ func (c *Cluster) GetNetwork(input string) (apitypes.NetworkResource, error) {
 	}); err != nil {
 		return apitypes.NetworkResource{}, err
 	}
-	return convert.BasicNetworkFromGRPC(*network), nil
+	return convert.BasicNetworkFromGRPC(*network)
 }
 
 // GetNetworksByName returns cluster managed networks by name.

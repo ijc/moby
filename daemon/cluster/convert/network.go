@@ -1,6 +1,7 @@
 package convert
 
 import (
+	"errors"
 	"strings"
 
 	basictypes "github.com/docker/docker/api/types"
@@ -129,7 +130,7 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 }
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
-func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
+func BasicNetworkFromGRPC(n swarmapi.Network) (basictypes.NetworkResource, error) {
 	spec := n.Spec
 	var ipam networktypes.IPAM
 	if spec.IPAM != nil {
@@ -166,7 +167,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		nr.Options = n.DriverState.Options
 	}
 
-	return nr
+	return nr, nil
 }
 
 // BasicNetworkCreateToGRPC converts a NetworkCreateRequest to a grpc NetworkSpec.
