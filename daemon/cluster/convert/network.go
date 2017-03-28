@@ -11,17 +11,21 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 )
 
-func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) types.NetworkAttachment {
+func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) (types.NetworkAttachment, error) {
 	if na != nil {
-		return types.NetworkAttachment{
-			Network:   networkFromGRPC(na.Network),
-			Addresses: na.Addresses,
+		n, err := networkFromGRPC(na.Network)
+		if err != nil {
+			return types.NetworkAttachment{}, err
 		}
+		return types.NetworkAttachment{
+			Network:   n,
+			Addresses: na.Addresses,
+		}, nil
 	}
-	return types.NetworkAttachment{}
+	return types.NetworkAttachment{}, nil
 }
 
-func networkFromGRPC(n *swarmapi.Network) types.Network {
+func networkFromGRPC(n *swarmapi.Network) (types.Network, error) {
 	if n != nil {
 		network := types.Network{
 			ID: n.ID,
@@ -59,9 +63,9 @@ func networkFromGRPC(n *swarmapi.Network) types.Network {
 			}
 		}
 
-		return network
+		return network, nil
 	}
-	return types.Network{}
+	return types.Network{}, nil
 }
 
 func ipamFromGRPC(i *swarmapi.IPAMOptions) *types.IPAMOptions {

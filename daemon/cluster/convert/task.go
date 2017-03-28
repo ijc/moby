@@ -9,9 +9,9 @@ import (
 )
 
 // TaskFromGRPC converts a grpc Task to a Task.
-func TaskFromGRPC(t swarmapi.Task) types.Task {
+func TaskFromGRPC(t swarmapi.Task) (types.Task, error) {
 	if t.Spec.GetAttachment() != nil {
-		return types.Task{}
+		return types.Task{}, nil
 	}
 	containerStatus := t.Status.GetContainer()
 
@@ -45,11 +45,15 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 
 	// NetworksAttachments
 	for _, na := range t.Networks {
-		task.NetworksAttachments = append(task.NetworksAttachments, networkAttachmentFromGRPC(na))
+		newna, err := networkAttachmentFromGRPC(na)
+		if err != nil {
+			return types.Task{}, err
+		}
+		task.NetworksAttachments = append(task.NetworksAttachments, newna)
 	}
 
 	if t.Status.PortStatus == nil {
-		return task
+		return task, nil
 	}
 
 	for _, p := range t.Status.PortStatus.Ports {
@@ -62,5 +66,5 @@ func TaskFromGRPC(t swarmapi.Task) types.Task {
 		})
 	}
 
-	return task
+	return task, nil
 }

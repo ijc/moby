@@ -64,7 +64,11 @@ func (c *Cluster) GetTasks(options apitypes.TaskListOptions) ([]types.Task, erro
 
 	for _, task := range r.Tasks {
 		if task.Spec.GetContainer() != nil {
-			tasks = append(tasks, convert.TaskFromGRPC(*task))
+			newtask, err := convert.TaskFromGRPC(*task)
+			if err != nil {
+				return nil, err
+			}
+			tasks = append(tasks, newtask)
 		}
 	}
 	return tasks, nil
@@ -83,5 +87,5 @@ func (c *Cluster) GetTask(input string) (types.Task, error) {
 	}); err != nil {
 		return types.Task{}, err
 	}
-	return convert.TaskFromGRPC(*task), nil
+	return convert.TaskFromGRPC(*task)
 }
