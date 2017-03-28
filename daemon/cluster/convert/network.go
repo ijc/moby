@@ -27,16 +27,24 @@ func networkAttachmentFromGRPC(na *swarmapi.NetworkAttachment) (types.NetworkAtt
 
 func networkFromGRPC(n *swarmapi.Network) (types.Network, error) {
 	if n != nil {
+		cnmSpec := n.Spec.GetCNMCompat()
+		if cnmSpec == nil {
+			return types.Network{}, errors.New("Unexpected non-CNM network")
+		}
+		cnmState := n.GetCNMCompat()
+		if cnmState == nil {
+			return types.Network{}, errors.New("CNM network with no CNM state")
+		}
 		network := types.Network{
 			ID: n.ID,
 			Spec: types.NetworkSpec{
-				IPv6Enabled: n.Spec.Ipv6Enabled,
-				Internal:    n.Spec.Internal,
-				Attachable:  n.Spec.Attachable,
-				Ingress:     n.Spec.Ingress,
-				IPAMOptions: ipamFromGRPC(n.Spec.IPAM),
+				IPv6Enabled: cnmSpec.Ipv6Enabled,
+				Internal:    cnmSpec.Internal,
+				Ingress:     cnmSpec.Ingress,
+				Attachable:  cnmSpec.Attachable,
+				IPAMOptions: ipamFromGRPC(cnmSpec.IPAM),
 			},
-			IPAMOptions: ipamFromGRPC(n.IPAM),
+			IPAMOptions: ipamFromGRPC(cnmState.IPAM),
 		}
 
 		// Meta
@@ -48,18 +56,18 @@ func networkFromGRPC(n *swarmapi.Network) (types.Network, error) {
 		network.Spec.Annotations = annotationsFromGRPC(n.Spec.Annotations)
 
 		//DriverConfiguration
-		if n.Spec.DriverConfig != nil {
+		if cnmSpec.DriverConfig != nil {
 			network.Spec.DriverConfiguration = &types.Driver{
-				Name:    n.Spec.DriverConfig.Name,
-				Options: n.Spec.DriverConfig.Options,
+				Name:    cnmSpec.DriverConfig.Name,
+				Options: cnmSpec.DriverConfig.Options,
 			}
 		}
 
 		//DriverState
-		if n.DriverState != nil {
+		if cnmState.DriverState != nil {
 			network.DriverState = types.Driver{
-				Name:    n.DriverState.Name,
-				Options: n.DriverState.Options,
+				Name:    cnmState.DriverState.Name,
+				Options: cnmState.DriverState.Options,
 			}
 		}
 
@@ -135,15 +143,23 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 
 // BasicNetworkFromGRPC converts a grpc Network to a NetworkResource.
 func BasicNetworkFromGRPC(n swarmapi.Network) (basictypes.NetworkResource, error) {
-	spec := n.Spec
+	cnmSpec := n.Spec.GetCNMCompat()
+	if cnmSpec == nil {
+		return basictypes.NetworkResource{}, errors.New("Unexpected non-CNM network")
+	}
+	cnmState := n.GetCNMCompat()
+	if cnmState == nil {
+		return basictypes.NetworkResource{}, errors.New("CNM network with no CNM state")
+	}
+
 	var ipam networktypes.IPAM
-	if spec.IPAM != nil {
-		if spec.IPAM.Driver != nil {
-			ipam.Driver = spec.IPAM.Driver.Name
-			ipam.Options = spec.IPAM.Driver.Options
+	if cnmSpec.IPAM != nil {
+		if cnmSpec.IPAM.Driver != nil {
+			ipam.Driver = cnmSpec.IPAM.Driver.Name
+			ipam.Options = cnmSpec.IPAM.Driver.Options
 		}
-		ipam.Config = make([]networktypes.IPAMConfig, 0, len(spec.IPAM.Configs))
-		for _, ic := range spec.IPAM.Configs {
+		ipam.Config = make([]networktypes.IPAMConfig, 0, len(cnmSpec.IPAM.Configs))
+		for _, ic := range cnmSpec.IPAM.Configs {
 			ipamConfig := networktypes.IPAMConfig{
 				Subnet:     ic.Subnet,
 				IPRange:    ic.Range,
@@ -158,17 +174,17 @@ func BasicNetworkFromGRPC(n swarmapi.Network) (basictypes.NetworkResource, error
 		ID:         n.ID,
 		Name:       n.Spec.Annotations.Name,
 		Scope:      "swarm",
-		EnableIPv6: spec.Ipv6Enabled,
+		EnableIPv6: cnmSpec.Ipv6Enabled,
 		IPAM:       ipam,
-		Internal:   spec.Internal,
-		Attachable: spec.Attachable,
-		Ingress:    spec.Ingress,
+		Internal:   cnmSpec.Internal,
+		Attachable: cnmSpec.Attachable,
+		Ingress:    cnmSpec.Ingress,
 		Labels:     n.Spec.Annotations.Labels,
 	}
 
-	if n.DriverState != nil {
-		nr.Driver = n.DriverState.Name
-		nr.Options = n.DriverState.Options
+	if cnmState.DriverState != nil {
+		nr.Driver = cnmState.DriverState.Name
+		nr.Options = cnmState.DriverState.Options
 	}
 
 	return nr, nil
@@ -176,11 +192,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) (basictypes.NetworkResource, error
 
 // BasicNetworkCreateToGRPC converts a NetworkCreateRequest to a grpc NetworkSpec.
 func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.NetworkSpec {
-	ns := swarmapi.NetworkSpec{
-		Annotations: swarmapi.Annotations{
-			Name:   create.Name,
-			Labels: create.Labels,
-		},
+	cnmSpec := &swarmapi.CNMNetworkSpec{
 		DriverConfig: &swarmapi.Driver{
 			Name:    create.Driver,
 			Options: create.Options,
@@ -190,12 +202,21 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 		Attachable:  create.Attachable,
 		Ingress:     create.Ingress,
 	}
+	ns := swarmapi.NetworkSpec{
+		Annotations: swarmapi.Annotations{
+			Name:   create.Name,
+			Labels: create.Labels,
+		},
+		Backend: &swarmapi.NetworkSpec_CNM{
+			CNM: cnmSpec,
+		},
+	}
 	if create.IPAM != nil {
 		driver := create.IPAM.Driver
 		if driver == "" {
 			driver = "default"
 		}
-		ns.IPAM = &swarmapi.IPAMOptions{
+		cnmSpec.IPAM = &swarmapi.IPAMOptions{
 			Driver: &swarmapi.Driver{
 				Name:    driver,
 				Options: create.IPAM.Options,
@@ -209,7 +230,7 @@ func BasicNetworkCreateToGRPC(create basictypes.NetworkCreateRequest) swarmapi.N
 				Gateway: ipamConfig.Gateway,
 			})
 		}
-		ns.IPAM.Configs = ipamSpec
+		cnmSpec.IPAM.Configs = ipamSpec
 	}
 	return ns
 }

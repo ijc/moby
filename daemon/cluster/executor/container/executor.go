@@ -1,6 +1,7 @@
 package container
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -129,18 +130,26 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		e.backend.ReleaseIngress()
 		return nil
 	}
+	cnmSpec := na.Network.Spec.GetCNMCompat()
+	if cnmSpec == nil {
+		return errors.New("executor: Unexpected non-CNM network")
+	}
+	cnmState := na.Network.GetCNMCompat()
+	if cnmState == nil {
+		return errors.New("executor: CNM network with no CNM state")
+	}
 
 	options := types.NetworkCreate{
-		Driver: na.Network.DriverState.Name,
+		Driver: cnmState.DriverState.Name,
 		IPAM: &network.IPAM{
-			Driver: na.Network.IPAM.Driver.Name,
+			Driver: cnmState.IPAM.Driver.Name,
 		},
-		Options:        na.Network.DriverState.Options,
+		Options:        cnmState.DriverState.Options,
 		Ingress:        true,
 		CheckDuplicate: true,
 	}
 
-	for _, ic := range na.Network.IPAM.Configs {
+	for _, ic := range cnmState.IPAM.Configs {
 		c := network.IPAMConfig{
 			Subnet:  ic.Subnet,
 			IPRange: ic.Range,

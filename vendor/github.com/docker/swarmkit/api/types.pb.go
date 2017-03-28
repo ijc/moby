@@ -17,7 +17,7 @@
 		health.proto
 		resource.proto
 		logbroker.proto
-		store.proto
+		watch.proto
 
 	It has these top-level messages:
 		Version
@@ -81,6 +81,7 @@
 		NetworkAttachmentSpec
 		ContainerSpec
 		EndpointSpec
+		CNMNetworkSpec
 		NetworkSpec
 		ClusterSpec
 		SecretSpec
@@ -91,6 +92,7 @@
 		Endpoint
 		Task
 		NetworkAttachment
+		CNMState
 		Network
 		Cluster
 		Secret
@@ -199,6 +201,7 @@
 		LogSubscriptionOptions
 		LogSelector
 		LogContext
+		LogAttr
 		LogMessage
 		SubscribeLogsRequest
 		SubscribeLogsMessage

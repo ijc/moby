@@ -568,23 +568,32 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		return clustertypes.NetworkCreateRequest{}, errors.New("container: unknown network referenced")
 	}
 
+	cnmSpec := na.Network.Spec.GetCNMCompat()
+	if cnmSpec == nil {
+		return clustertypes.NetworkCreateRequest{}, errors.New("container: Unexpected non-CNM network")
+	}
+	cnmState := na.Network.GetCNMCompat()
+	if cnmState == nil {
+		return clustertypes.NetworkCreateRequest{}, errors.New("container: CNM network with no CNM state")
+	}
+
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
-		Driver: na.Network.DriverState.Name,
+		Driver: cnmState.DriverState.Name,
 		IPAM: &network.IPAM{
-			Driver:  na.Network.IPAM.Driver.Name,
-			Options: na.Network.IPAM.Driver.Options,
+			Driver:  cnmState.IPAM.Driver.Name,
+			Options: cnmState.IPAM.Driver.Options,
 		},
-		Options:        na.Network.DriverState.Options,
+		Options:        cnmState.DriverState.Options,
 		Labels:         na.Network.Spec.Annotations.Labels,
-		Internal:       na.Network.Spec.Internal,
-		Attachable:     na.Network.Spec.Attachable,
-		Ingress:        na.Network.Spec.Ingress,
-		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
+		Internal:       cnmSpec.Internal,
+		Attachable:     cnmSpec.Attachable,
+		Ingress:        cnmSpec.Ingress,
+		EnableIPv6:     cnmSpec.Ipv6Enabled,
 		CheckDuplicate: true,
 	}
 
-	for _, ic := range na.Network.IPAM.Configs {
+	for _, ic := range cnmState.IPAM.Configs {
 		c := network.IPAMConfig{
 			Subnet:  ic.Subnet,
 			IPRange: ic.Range,
